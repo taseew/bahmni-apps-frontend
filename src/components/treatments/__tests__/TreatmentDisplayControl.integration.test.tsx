@@ -16,11 +16,12 @@ const mockFhirResponse = {
   entry: [
     {
       resource: {
-        resourceType: 'MedicationRequest',
+        resourceType: 'MedicationRequest' as const,
         id: '1',
         status: 'active',
         intent: 'order',
-        medicationCodeableConcept: {
+        priority: 'stat',
+        medication: {
           coding: [
             {
               system: 'http://snomed.info/sct',
@@ -40,10 +41,28 @@ const mockFhirResponse = {
           type: 'Practitioner',
           display: 'Dr. Smith'
         },
+        category: [
+          {
+            coding: [
+              {
+                system: 'http://terminology.hl7.org/CodeSystem/medicationrequest-category',
+                code: 'pain-management',
+                display: 'Pain Management'
+              }
+            ]
+          }
+        ],
+        note: [
+          { text: 'Take with food' },
+          { text: 'Avoid alcohol' }
+        ],
         dosageInstruction: [
           {
             timing: {
               repeat: {
+                frequency: 4,
+                period: 1,
+                periodUnit: 'day',
                 duration: 7,
                 durationUnit: 'days',
                 boundsPeriod: {
@@ -52,6 +71,32 @@ const mockFhirResponse = {
                 }
               }
             },
+            route: {
+              coding: [
+                {
+                  system: 'http://snomed.info/sct',
+                  code: '26643006',
+                  display: 'Oral'
+                }
+              ]
+            },
+            method: {
+              coding: [
+                {
+                  system: 'http://snomed.info/sct',
+                  code: '421521009',
+                  display: 'Swallow whole'
+                }
+              ]
+            },
+            doseAndRate: [
+              {
+                doseQuantity: {
+                  value: 500,
+                  unit: 'mg'
+                }
+              }
+            ],
             text: 'Take 1 tablet every 6 hours'
           }
         ]
@@ -59,11 +104,12 @@ const mockFhirResponse = {
     },
     {
       resource: {
-        resourceType: 'MedicationRequest',
+        resourceType: 'MedicationRequest' as const,
         id: '2',
         status: 'completed',
         intent: 'order',
-        medicationCodeableConcept: {
+        priority: 'routine',
+        medication: {
           coding: [
             {
               system: 'http://snomed.info/sct',
@@ -87,6 +133,9 @@ const mockFhirResponse = {
           {
             timing: {
               repeat: {
+                frequency: 3,
+                period: 1,
+                periodUnit: 'day',
                 duration: 14,
                 durationUnit: 'days',
                 boundsPeriod: {
@@ -95,6 +144,32 @@ const mockFhirResponse = {
                 }
               }
             },
+            route: {
+              coding: [
+                {
+                  system: 'http://snomed.info/sct',
+                  code: '26643006',
+                  display: 'Oral'
+                }
+              ]
+            },
+            method: {
+              coding: [
+                {
+                  system: 'http://snomed.info/sct',
+                  code: '421521009',
+                  display: 'Take with water'
+                }
+              ]
+            },
+            doseAndRate: [
+              {
+                doseQuantity: {
+                  value: 500,
+                  unit: 'mg'
+                }
+              }
+            ],
             text: 'Take 1 capsule three times a day'
           }
         ]
@@ -127,11 +202,28 @@ describe('TreatmentDisplayControl Integration', () => {
     // Verify API call
     expect(getMedicationRequests).toHaveBeenCalledWith(mockPatientUUID);
 
-    // Check rendered data
+    // Check basic data
     expect(screen.getByText('Paracetamol 500mg')).toBeInTheDocument();
     expect(screen.getByText('Amoxicillin 500mg')).toBeInTheDocument();
-    expect(screen.getByText('Dr. Smith')).toBeInTheDocument();
-    expect(screen.getByText('Dr. Jones')).toBeInTheDocument();
+
+    // Check status and priority tags
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('STAT')).toBeInTheDocument();
+    expect(screen.getByText('ROUTINE')).toBeInTheDocument();
+
+    // Check dosage information
+    expect(screen.getByText('500 mg')).toBeInTheDocument();
+    expect(screen.getByText('4 times per day')).toBeInTheDocument();
+    expect(screen.getByText('Oral')).toBeInTheDocument();
+
+    // Check expanded content
+    const expandButton = screen.getAllByRole('button')[0];
+    fireEvent.click(expandButton);
+
+    expect(screen.getByText('Pain Management')).toBeInTheDocument();
+    expect(screen.getByText('Take with food')).toBeInTheDocument();
+    expect(screen.getByText('Avoid alcohol')).toBeInTheDocument();
+    expect(screen.getByText('Swallow whole')).toBeInTheDocument();
   });
 
   it('handles API error correctly', async () => {
