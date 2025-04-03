@@ -2,6 +2,7 @@ import React from 'react';
 import { Grid, Column, Section } from '@carbon/react';
 import PatientDetails from '@components/patient/PatientDetails';
 import ConditionsTable from '@components/conditions/ConditionsTable';
+import { TreatmentDisplayControl } from '@components/treatments/TreatmentDisplayControl';
 
 const HomePage: React.FC = () => {
   return (
@@ -10,6 +11,7 @@ const HomePage: React.FC = () => {
         <Column lg={16} md={8} sm={4}>
           <PatientDetails />
           <ConditionsTable />
+          <TreatmentDisplayControl />
         </Column>
       </Grid>
     </Section>
