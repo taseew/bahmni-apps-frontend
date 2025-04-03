@@ -1,10 +1,15 @@
+import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useTreatments } from '../useTreatments';
-import { getMedicationRequests } from '../../services/treatmentService';
+import { getMedicationRequests, transformFhirMedicationData } from '../../services/treatmentService';
 import { useNotification } from '../useNotification';
+import { NotificationProvider } from '../../providers/NotificationProvider';
 
 // Mock dependencies
-jest.mock('../../services/treatmentService');
+jest.mock('../../services/treatmentService', () => ({
+  getMedicationRequests: jest.fn(),
+  transformFhirMedicationData: jest.fn()
+}));
 jest.mock('../useNotification');
 
 const mockPatientUUID = 'test-patient-uuid';
@@ -19,15 +24,11 @@ const mockFhirResponse = {
         id: '1',
         status: 'active',
         intent: 'order',
-        medicationCodeableConcept: {
-          coding: [
-            {
-              system: 'http://snomed.info/sct',
-              code: '123456',
-              display: 'Paracetamol'
-            }
-          ],
-          text: 'Paracetamol 500mg'
+        priority: 'stat',
+        medicationReference: {
+          reference: 'Medication/1',
+          type: 'Medication',
+          display: 'Paracetamol 500mg'
         },
         subject: {
           reference: `Patient/${mockPatientUUID}`,
@@ -44,14 +45,47 @@ const mockFhirResponse = {
             timing: {
               repeat: {
                 duration: 7,
-                durationUnit: 'days',
-                boundsPeriod: {
-                  start: '2024-01-01T10:00:00',
-                  end: '2024-01-07T10:00:00'
-                }
+                durationUnit: 'days'
+              },
+              event: ['2024-01-01T10:00:00'],
+              code: {
+                text: '4 times per day',
+                coding: [
+                  {
+                    system: 'http://snomed.info/sct',
+                    code: '229799001',
+                    display: '4 times per day'
+                  }
+                ]
               }
             },
-            text: 'Take 1 tablet every 6 hours'
+            route: {
+              coding: [
+                {
+                  system: 'http://snomed.info/sct',
+                  code: '26643006',
+                  display: 'Oral'
+                }
+              ]
+            },
+            method: {
+              coding: [
+                {
+                  system: 'http://snomed.info/sct',
+                  code: '421521009',
+                  display: 'Swallow whole'
+                }
+              ]
+            },
+            doseAndRate: [
+              {
+                doseQuantity: {
+                  value: 500,
+                  unit: 'mg'
+                }
+              }
+            ],
+            text: '{"instructions": "Take 1 tablet every 6 hours"}'
           }
         ]
       }
@@ -67,8 +101,13 @@ describe('useTreatments', () => {
     (useNotification as jest.Mock).mockReturnValue({ addNotification: mockAddNotification });
   });
 
+  // Create a wrapper with NotificationProvider
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <NotificationProvider>{children}</NotificationProvider>
+  );
+
   it('returns initial state', () => {
-    const { result } = renderHook(() => useTreatments(mockPatientUUID));
+    const { result } = renderHook(() => useTreatments(mockPatientUUID), { wrapper });
 
     expect(result.current).toEqual({
       treatments: [],
@@ -79,9 +118,25 @@ describe('useTreatments', () => {
   });
 
   it('fetches and transforms treatments data', async () => {
-    (getMedicationRequests as jest.Mock).mockResolvedValue(mockFhirResponse);
+    const mockFormattedTreatment = {
+      id: '1',
+      drugName: 'Paracetamol 500mg',
+      status: 'Active',
+      priority: 'STAT',
+      provider: 'Dr. Smith',
+      startDate: '2024-01-01T10:00:00',
+      duration: '7 days',
+      frequency: '4 times per day',
+      route: 'Oral',
+      method: 'Swallow whole',
+      doseQuantity: '500 mg',
+      dosageInstructions: 'Take 1 tablet every 6 hours'
+    };
 
-    const { result } = renderHook(() => useTreatments(mockPatientUUID));
+    (getMedicationRequests as jest.Mock).mockResolvedValue(mockFhirResponse);
+    (transformFhirMedicationData as jest.Mock).mockReturnValue([mockFormattedTreatment]);
+
+    const { result } = renderHook(() => useTreatments(mockPatientUUID), { wrapper });
 
     expect(result.current.loading).toBe(true);
 
@@ -89,17 +144,11 @@ describe('useTreatments', () => {
       expect(result.current.loading).toBe(false);
     });
 
+    expect(transformFhirMedicationData).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ id: '1' })])
+    );
     expect(result.current.treatments).toHaveLength(1);
-    expect(result.current.treatments[0]).toEqual({
-      id: '1',
-      drugName: 'Paracetamol 500mg',
-      status: 'Active',
-      provider: 'Dr. Smith',
-      startDate: expect.any(String),
-      endDate: expect.any(String),
-      duration: '7 days',
-      dosageInstructions: 'Take 1 tablet every 6 hours'
-    });
+    expect(result.current.treatments[0]).toEqual(mockFormattedTreatment);
     expect(result.current.error).toBeNull();
   });
 
@@ -107,7 +156,7 @@ describe('useTreatments', () => {
     const error = new Error('Failed to fetch treatments');
     (getMedicationRequests as jest.Mock).mockRejectedValue(error);
 
-    const { result } = renderHook(() => useTreatments(mockPatientUUID));
+    const { result } = renderHook(() => useTreatments(mockPatientUUID), { wrapper });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -123,7 +172,7 @@ describe('useTreatments', () => {
   });
 
   it('handles null patientUUID', () => {
-    const { result } = renderHook(() => useTreatments(null));
+    const { result } = renderHook(() => useTreatments(null), { wrapper });
 
     expect(result.current.error).toBeInstanceOf(Error);
     expect(result.current.error?.message).toBe('Invalid patient UUID');
@@ -140,7 +189,7 @@ describe('useTreatments', () => {
 
     const { result, rerender } = renderHook(
       (patientUUID) => useTreatments(patientUUID),
-      { initialProps: mockPatientUUID }
+      { initialProps: mockPatientUUID, wrapper }
     );
 
     await waitFor(() => {
@@ -159,7 +208,7 @@ describe('useTreatments', () => {
   it('refetches data when refetch is called', async () => {
     (getMedicationRequests as jest.Mock).mockResolvedValue(mockFhirResponse);
 
-    const { result } = renderHook(() => useTreatments(mockPatientUUID));
+    const { result } = renderHook(() => useTreatments(mockPatientUUID), { wrapper });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);

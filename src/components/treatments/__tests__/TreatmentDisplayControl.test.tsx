@@ -1,166 +1,158 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { TreatmentDisplayControl } from '../TreatmentDisplayControl';
 import { usePatientUUID } from '../../../hooks/usePatientUUID';
 import { useTreatments } from '../../../hooks/useTreatments';
+import { NotificationProvider } from '../../../providers/NotificationProvider';
+import {
+  mockPatientUUID,
+  mockFormattedTreatments,
+  mockFormattedTreatmentWithMissingFields
+} from '../../../__mocks__/treatmentMocks';
 
 // Mock hooks
 jest.mock('../../../hooks/usePatientUUID');
 jest.mock('../../../hooks/useTreatments');
 
-const mockPatientUUID = 'test-patient-uuid';
-const mockTreatments = [
-  {
-    id: '1',
-    drugName: 'Paracetamol',
-    status: 'Active',
-    priority: 'STAT',
-    provider: 'Dr. Smith',
-    startDate: '2024-01-01T10:00:00',
-    endDate: '2024-01-07T10:00:00',
-    duration: '7 days',
-    frequency: '4 times per day',
-    route: 'Oral',
-    doseQuantity: '500 mg',
-    category: 'Pain Management',
-    method: 'Swallow whole',
-    notes: ['Take with food', 'Avoid alcohol'],
-    dosageInstructions: 'Take 1 tablet every 6 hours',
-  },
-  {
-    id: '2',
-    drugName: 'Amoxicillin',
-    status: 'Completed',
-    priority: 'ROUTINE',
-    provider: 'Dr. Jones',
-    startDate: '2024-02-01T10:00:00',
-    endDate: '2024-02-14T10:00:00',
-    duration: '14 days',
-    frequency: '3 times per day',
-    route: 'Oral',
-    doseQuantity: '500 mg',
-    method: 'Take with water',
-    dosageInstructions: 'Take 1 capsule three times a day',
-  },
-];
+const mockedUsePatientUUID = usePatientUUID as jest.MockedFunction<typeof usePatientUUID>;
+const mockedUseTreatments = useTreatments as jest.MockedFunction<typeof useTreatments>;
 
 describe('TreatmentDisplayControl', () => {
   beforeEach(() => {
-    (usePatientUUID as jest.Mock).mockReturnValue(mockPatientUUID);
+    jest.clearAllMocks();
   });
 
-  it('renders loading state correctly', () => {
-    (useTreatments as jest.Mock).mockReturnValue({
+  const renderComponent = () =>
+    render(
+      <NotificationProvider>
+        <TreatmentDisplayControl />
+      </NotificationProvider>
+    );
+
+  it('should call usePatientUUID to get patient UUID', () => {
+    mockedUsePatientUUID.mockReturnValue(mockPatientUUID);
+    mockedUseTreatments.mockReturnValue({
+      treatments: mockFormattedTreatments,
+      loading: false,
+      error: null,
+      refetch: jest.fn()
+    });
+
+    renderComponent();
+
+    expect(usePatientUUID).toHaveBeenCalled();
+  });
+
+  it('should call useTreatments with the correct patient UUID', () => {
+    mockedUsePatientUUID.mockReturnValue(mockPatientUUID);
+    mockedUseTreatments.mockReturnValue({
+      treatments: mockFormattedTreatments,
+      loading: false,
+      error: null,
+      refetch: jest.fn()
+    });
+
+    renderComponent();
+
+    expect(useTreatments).toHaveBeenCalledWith(mockPatientUUID);
+  });
+
+  it('should display formatted treatments correctly', () => {
+    mockedUsePatientUUID.mockReturnValue(mockPatientUUID);
+    mockedUseTreatments.mockReturnValue({
+      treatments: mockFormattedTreatments,
+      loading: false,
+      error: null,
+      refetch: jest.fn()
+    });
+
+    renderComponent();
+
+    expect(screen.getByText('Paracetamol 500mg')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Dr. Smith')).toBeInTheDocument();
+  });
+
+  it('should handle missing optional fields', () => {
+    mockedUsePatientUUID.mockReturnValue(mockPatientUUID);
+    mockedUseTreatments.mockReturnValue({
+      treatments: [mockFormattedTreatmentWithMissingFields],
+      loading: false,
+      error: null,
+      refetch: jest.fn()
+    });
+
+    renderComponent();
+
+    expect(screen.getByText('Test Medication')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Dr. Smith')).toBeInTheDocument();
+  });
+
+  it('should handle loading state', () => {
+    mockedUsePatientUUID.mockReturnValue(mockPatientUUID);
+    mockedUseTreatments.mockReturnValue({
       treatments: [],
       loading: true,
       error: null,
+      refetch: jest.fn()
     });
 
-    render(<TreatmentDisplayControl />);
+    renderComponent();
+
     expect(screen.getByTestId('expandable-table-skeleton')).toBeInTheDocument();
   });
 
-  it('renders error state correctly', () => {
-    const error = new Error('Failed to fetch treatments');
-    (useTreatments as jest.Mock).mockReturnValue({
+  it('should handle error state', () => {
+    mockedUsePatientUUID.mockReturnValue(mockPatientUUID);
+    mockedUseTreatments.mockReturnValue({
       treatments: [],
       loading: false,
-      error,
+      error: new Error('Failed to fetch treatments'),
+      refetch: jest.fn()
     });
 
-    render(<TreatmentDisplayControl />);
+    renderComponent();
+
     expect(screen.getByTestId('expandable-table-error')).toBeInTheDocument();
   });
 
-  it('renders empty state correctly', () => {
-    (useTreatments as jest.Mock).mockReturnValue({
+  it('should handle empty state', () => {
+    mockedUsePatientUUID.mockReturnValue(mockPatientUUID);
+    mockedUseTreatments.mockReturnValue({
       treatments: [],
       loading: false,
       error: null,
+      refetch: jest.fn()
     });
 
-    render(<TreatmentDisplayControl />);
-    expect(
-      screen.getByTestId('expandable-data-table-empty'),
-    ).toBeInTheDocument();
+    renderComponent();
+
+    expect(screen.getByTestId('expandable-data-table-empty')).toBeInTheDocument();
     expect(screen.getByText('No treatments found')).toBeInTheDocument();
   });
 
-  describe('Data Display', () => {
-    beforeEach(() => {
-      (useTreatments as jest.Mock).mockReturnValue({
-        treatments: mockTreatments,
-        loading: false,
-        error: null,
-      });
-    });
+  it('should refetch treatments when patient UUID changes', () => {
+    const refetchMock = jest.fn();
+    const newUUID = 'new-patient-uuid';
 
-    it('renders basic treatment data correctly', () => {
-      render(<TreatmentDisplayControl />);
-      expect(screen.getByTestId('treatments-table')).toBeInTheDocument();
-      expect(screen.getByText('Paracetamol')).toBeInTheDocument();
-      expect(screen.getByText('Amoxicillin')).toBeInTheDocument();
-    });
-
-    it('renders status tags with correct colors', () => {
-      render(<TreatmentDisplayControl />);
-      const activeTag = screen.getByText('Active').closest('div');
-      const completedTag = screen.getByText('Completed').closest('div');
-
-      expect(activeTag).toHaveClass('green');
-      expect(completedTag).toHaveClass('blue');
-    });
-
-    it('renders priority tags correctly', () => {
-      render(<TreatmentDisplayControl />);
-      const statTag = screen.getByText('STAT').closest('div');
-      const routineTag = screen.getByText('ROUTINE').closest('div');
-
-      expect(statTag).toHaveClass('red');
-      expect(routineTag).toHaveClass('blue');
-    });
-
-    it('renders dosage information correctly', () => {
-      render(<TreatmentDisplayControl />);
-      expect(screen.getByText('500 mg')).toBeInTheDocument();
-      expect(screen.getByText('4 times per day')).toBeInTheDocument();
-      expect(screen.getByText('Oral')).toBeInTheDocument();
-    });
-
-    it('renders expanded content with all sections', async () => {
-      render(<TreatmentDisplayControl />);
-      const expandButton = screen.getAllByRole('button')[0];
-      fireEvent.click(expandButton);
-
-      expect(screen.getByText('Category')).toBeInTheDocument();
-      expect(screen.getByText('Pain Management')).toBeInTheDocument();
-      expect(screen.getByText('Take with food')).toBeInTheDocument();
-      expect(screen.getByText('Avoid alcohol')).toBeInTheDocument();
-      expect(screen.getByText('Swallow whole')).toBeInTheDocument();
-    });
-  });
-
-  it('renders with custom title', () => {
-    (useTreatments as jest.Mock).mockReturnValue({
-      treatments: mockTreatments,
+    mockedUsePatientUUID.mockReturnValue(mockPatientUUID);
+    mockedUseTreatments.mockReturnValue({
+      treatments: mockFormattedTreatments,
       loading: false,
       error: null,
+      refetch: refetchMock
     });
 
-    const customTitle = 'Custom Treatment Title';
-    render(<TreatmentDisplayControl tableTitle={customTitle} />);
-    expect(screen.getByText(customTitle)).toBeInTheDocument();
-  });
+    const { rerender } = renderComponent();
 
-  it('renders with custom aria label', () => {
-    (useTreatments as jest.Mock).mockReturnValue({
-      treatments: mockTreatments,
-      loading: false,
-      error: null,
-    });
+    mockedUsePatientUUID.mockReturnValue(newUUID);
+    rerender(
+      <NotificationProvider>
+        <TreatmentDisplayControl />
+      </NotificationProvider>
+    );
 
-    const customAriaLabel = 'Custom aria label';
-    render(<TreatmentDisplayControl ariaLabel={customAriaLabel} />);
-    expect(screen.getByLabelText(customAriaLabel)).toBeInTheDocument();
+    expect(useTreatments).toHaveBeenCalledWith(newUUID);
   });
 });

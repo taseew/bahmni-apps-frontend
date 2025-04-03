@@ -1,6 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { FormattedTreatment } from '../types/treatment';
-import { getMedicationRequests, transformFhirMedicationData } from '../services/treatmentService';
+import {
+  getMedicationRequests,
+  transformFhirMedicationData,
+} from '../services/treatmentService';
 import { useNotification } from './useNotification';
 import { getFormattedError } from '../utils/common';
 
@@ -28,7 +31,7 @@ export function useTreatments(patientUUID: string | null): UseTreatmentsResult {
       addNotification({
         type: 'error',
         title: 'Error',
-        message: 'Invalid patient UUID'
+        message: 'Invalid patient UUID',
       });
       return;
     }
@@ -38,7 +41,7 @@ export function useTreatments(patientUUID: string | null): UseTreatmentsResult {
       setError(null);
       const result = await getMedicationRequests(patientUUID);
       const formattedTreatments = transformFhirMedicationData(
-        result.entry?.map(entry => entry.resource) ?? []
+        result.entry?.map((entry) => entry.resource) ?? [],
       );
       setTreatments(formattedTreatments);
     } catch (err) {
@@ -47,7 +50,7 @@ export function useTreatments(patientUUID: string | null): UseTreatmentsResult {
       addNotification({
         type: 'error',
         title,
-        message
+        message,
       });
     } finally {
       setLoading(false);
@@ -62,6 +65,6 @@ export function useTreatments(patientUUID: string | null): UseTreatmentsResult {
     treatments,
     loading,
     error,
-    refetch: fetchTreatments
+    refetch: fetchTreatments,
   };
 }

@@ -23,9 +23,13 @@ export async function getMedicationRequests(
 /**
  * Formats the status of a medication request
  */
-function formatStatus(
+export function formatStatus(
   status: FhirMedicationRequest['status'],
 ): FormattedTreatment['status'] {
+  if (!status) {
+    return 'Unknown';
+  }
+
   const statusMap: Record<
     FhirMedicationRequest['status'],
     FormattedTreatment['status']
@@ -38,13 +42,13 @@ function formatStatus(
     draft: 'Draft',
     unknown: 'Unknown',
   };
-  return statusMap[status];
+  return statusMap[status] || 'Unknown';
 }
 
 /**
  * Formats dosage details from instructions
  */
-function formatDosageDetails(
+export function formatDosageDetails(
   instruction: FhirMedicationRequest['dosageInstruction'][0],
 ) {
   const timing = instruction.timing.repeat;
@@ -65,16 +69,55 @@ function formatDosageDetails(
 }
 
 /**
+ * Gets the drug name from medication field
+ */
+export function getDrugName(fhirData: FhirMedicationRequest): string {
+  // Handle medicationReference (new structure)
+  if (fhirData.medicationReference) {
+    return fhirData.medicationReference.display ?? 'Unknown Medication';
+  }
+
+  // Handle medicationCodeableConcept (old structure)
+  const medicationCodeableConcept = (fhirData as any).medicationCodeableConcept;
+  if (medicationCodeableConcept) {
+    return medicationCodeableConcept.text ||
+           medicationCodeableConcept.coding?.[0]?.display ||
+           'Unknown Medication';
+  }
+
+  return 'Unknown Medication';
+}
+
+/**
+ * Gets dosage instructions from text field
+ */
+export function getDosageInstructions(fhirData: FhirMedicationRequest): string {
+  const text = fhirData.dosageInstruction?.[0]?.text;
+
+  if (!text) {
+    return 'No instructions specified';
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    return parsed.instructions || text;
+  } catch (e) {
+    // If not valid JSON, return the text directly
+    return text;
+  }
+}
+
+/**
  * Transforms a single FHIR MedicationRequest to FormattedTreatment
  */
-function transformFhirToTreatment(
+export function transformFhirToTreatment(
   fhirData: FhirMedicationRequest,
 ): FormattedTreatment {
   const dosageDetails = formatDosageDetails(fhirData.dosageInstruction[0]);
 
   return {
     id: fhirData.id,
-    drugName: fhirData.medicationReference?.display ?? 'Unknown Medication',
+    drugName: getDrugName(fhirData),
     status: formatStatus(fhirData.status),
     priority: fhirData.priority?.toUpperCase(),
     provider: fhirData.requester.display ?? 'Unknown Provider',
@@ -86,9 +129,7 @@ function transformFhirToTreatment(
     doseQuantity: dosageDetails.doseQuantity,
     category: fhirData.category?.[0]?.coding[0]?.display,
     notes: fhirData.note?.map((n) => n.text),
-    dosageInstructions: JSON.parse(fhirData.dosageInstruction[0]?.text || '{}')[
-      'instructions'
-    ],
+    dosageInstructions: getDosageInstructions(fhirData),
     visitInfo: fhirData.encounter
       ? {
           uuid: fhirData.encounter.reference,
