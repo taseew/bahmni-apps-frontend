@@ -44,12 +44,13 @@ export const PatientRelationships = ({
 
   const {
     relationships,
-    relationshipTypes,
     validationErrors,
     getPatientSuggestions,
+    getFilteredRelationshipTypes,
     updateRelationship,
     handlePatientSearch,
     handlePatientSelect,
+    handleRelationshipTypeFilter,
     addRelationship,
     removeRelationship,
     getData,
@@ -92,16 +93,18 @@ export const PatientRelationships = ({
     .filter((rel) => !rel.isDeleted)
     .map((rel) => {
       const suggestions = getPatientSuggestions(rel.id);
+      const filteredTypes = getFilteredRelationshipTypes(rel.id);
       const rowErrors = validationErrors[rel.id] ?? {};
 
       return RelationshipRow({
         relationship: rel,
-        relationshipTypes,
+        relationshipTypes: filteredTypes,
         suggestions,
         errors: rowErrors,
         onUpdateRelationship: updateRelationship,
         onPatientSearch: handlePatientSearch,
         onPatientSelect: handlePatientSelect,
+        onRelationshipTypeFilter: handleRelationshipTypeFilter,
         onRemove: removeRelationship,
         t,
       });

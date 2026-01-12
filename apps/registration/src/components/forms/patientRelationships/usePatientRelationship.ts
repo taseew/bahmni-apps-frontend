@@ -53,6 +53,11 @@ export const usePatientRelationship = ({
     setSearchTerms,
   } = usePatientSearch();
 
+  // State for filtering relationship types
+  const [relationshipTypeFilters, setRelationshipTypeFilters] = useState<
+    Record<string, string>
+  >({});
+
   const updateRelationship = useCallback(
     (id: string, field: keyof RelationshipData, value: string) => {
       setRelationships((prev) =>
@@ -124,6 +129,30 @@ export const usePatientRelationship = ({
     [setSearchTerms, clearFieldError],
   );
 
+  const handleRelationshipTypeFilter = useCallback(
+    (rowId: string, filterText: string) => {
+      setRelationshipTypeFilters((prev) => ({
+        ...prev,
+        [rowId]: filterText,
+      }));
+    },
+    [],
+  );
+
+  const getFilteredRelationshipTypes = useCallback(
+    (rowId: string) => {
+      const filterText = relationshipTypeFilters[rowId]?.toLowerCase() || '';
+      if (!filterText) {
+        return relationshipTypes;
+      }
+      return relationshipTypes.filter((type) => {
+        const searchString = `${type.aIsToB}/ ${type.bIsToA}`.toLowerCase();
+        return searchString.includes(filterText);
+      });
+    },
+    [relationshipTypes, relationshipTypeFilters],
+  );
+
   const addRelationship = useCallback(() => {
     setRelationships((prev) => [
       ...prev,
@@ -149,6 +178,11 @@ export const usePatientRelationship = ({
           .filter((rel) => !(rel.id === id && !rel.isExisting)),
       );
       clearSearch(id);
+      setRelationshipTypeFilters((prev) => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
     },
     [clearSearch],
   );
@@ -175,9 +209,11 @@ export const usePatientRelationship = ({
     relationshipTypes,
     validationErrors,
     getPatientSuggestions,
+    getFilteredRelationshipTypes,
     updateRelationship,
     handlePatientSearch,
     handlePatientSelect,
+    handleRelationshipTypeFilter,
     addRelationship,
     removeRelationship,
     getData,

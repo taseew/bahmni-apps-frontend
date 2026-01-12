@@ -1,6 +1,5 @@
 import {
   Button,
-  Dropdown,
   DatePicker,
   DatePickerInput,
   ComboBox,
@@ -40,6 +39,7 @@ interface RelationshipRowProps {
   ) => void;
   onPatientSearch: (id: string, value: string) => void;
   onPatientSelect: (id: string, patient: PatientSuggestion | null) => void;
+  onRelationshipTypeFilter: (id: string, filterText: string) => void;
   onRemove: (id: string) => void;
   t: (key: string) => string;
 }
@@ -52,6 +52,7 @@ export const RelationshipRow = ({
   onUpdateRelationship,
   onPatientSearch,
   onPatientSelect,
+  onRelationshipTypeFilter,
   onRemove,
   t,
 }: RelationshipRowProps) => {
@@ -102,10 +103,10 @@ export const RelationshipRow = ({
   return {
     id: relationship.id,
     relationshipType: (
-      <Dropdown
+      <ComboBox
         id={`relationship-type-${relationship.id}`}
         titleText=""
-        label={t('REGISTRATION_SELECT')}
+        placeholder={t('REGISTRATION_SELECT')}
         items={relationshipTypes}
         itemToString={(item) => (item ? `${item.aIsToB}/ ${item.bIsToA}` : '')}
         selectedItem={
@@ -115,6 +116,9 @@ export const RelationshipRow = ({
         }
         invalid={!!errors.relationshipType}
         invalidText={errors.relationshipType}
+        onInputChange={(inputValue) =>
+          onRelationshipTypeFilter(relationship.id, inputValue ?? '')
+        }
         onChange={({ selectedItem }) =>
           onUpdateRelationship(
             relationship.id,
