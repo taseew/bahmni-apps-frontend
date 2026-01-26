@@ -43,7 +43,6 @@ describe('RelationshipRow', () => {
     onUpdateRelationship: jest.fn(),
     onPatientSearch: jest.fn(),
     onPatientSelect: jest.fn(),
-    onRelationshipTypeFilter: jest.fn(),
     onRemove: jest.fn(),
     t: (key: string) => key,
   };
@@ -247,7 +246,7 @@ describe('RelationshipRow', () => {
     expect(combobox).not.toHaveAttribute('readonly');
   });
 
-  it('should have onInputChange handler for relationship type filtering', () => {
+  it('should use built-in ComboBox filtering for relationship types', () => {
     const row = RelationshipRow({
       relationship: { ...mockRelationship, relationshipType: '' },
       relationshipTypes: mockRelationshipTypes,
@@ -263,7 +262,7 @@ describe('RelationshipRow', () => {
     expect(combobox).toBeInTheDocument();
     expect(combobox.tagName).toBe('INPUT');
 
-    // The ComboBox should have onInputChange handler set up
+    // The ComboBox uses shouldFilterItem for built-in filtering
     // (verified by the component rendering without errors)
   });
 

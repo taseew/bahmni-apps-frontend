@@ -39,7 +39,6 @@ interface RelationshipRowProps {
   ) => void;
   onPatientSearch: (id: string, value: string) => void;
   onPatientSelect: (id: string, patient: PatientSuggestion | null) => void;
-  onRelationshipTypeFilter: (id: string, filterText: string) => void;
   onRemove: (id: string) => void;
   t: (key: string) => string;
 }
@@ -52,7 +51,6 @@ export const RelationshipRow = ({
   onUpdateRelationship,
   onPatientSearch,
   onPatientSelect,
-  onRelationshipTypeFilter,
   onRemove,
   t,
 }: RelationshipRowProps) => {
@@ -116,9 +114,11 @@ export const RelationshipRow = ({
         }
         invalid={!!errors.relationshipType}
         invalidText={errors.relationshipType}
-        onInputChange={(inputValue) =>
-          onRelationshipTypeFilter(relationship.id, inputValue ?? '')
-        }
+        shouldFilterItem={({ item, inputValue }) => {
+          if (!inputValue) return true;
+          const searchString = `${item.aIsToB}/ ${item.bIsToA}`.toLowerCase();
+          return searchString.includes(inputValue.toLowerCase());
+        }}
         onChange={({ selectedItem }) =>
           onUpdateRelationship(
             relationship.id,
