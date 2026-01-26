@@ -23,8 +23,8 @@ export const useRelationshipValidation = () => {
   const { data: relationshipTypes = [] } = useQuery({
     queryKey: ['relationshipTypes'],
     queryFn: getRelationshipTypes,
-    // Use cached data as initial data for instant loading
-    initialData: cachedData ?? undefined,
+    // Use cached data as placeholder while fetching fresh data in background
+    placeholderData: cachedData ?? undefined,
     // Data is considered fresh for 24 hours (relationship types rarely change)
     staleTime: 24 * 60 * 60 * 1000,
     // Keep data in cache for 7 days even when component unmounts
