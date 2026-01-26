@@ -127,6 +127,24 @@ describe('relationshipTypesCache', () => {
       expect(localStorage.getItem('bahmni_relationship_types')).toBeNull();
     });
 
+    it('should return null and clear cache when property types are invalid', () => {
+      const invalidCache = {
+        version: '1.0',
+        timestamp: Date.now(),
+        data: [
+          { uuid: 123, aIsToB: 'Parent', bIsToA: 'Child' }, // uuid is number, not string
+        ],
+      };
+      localStorage.setItem(
+        'bahmni_relationship_types',
+        JSON.stringify(invalidCache),
+      );
+
+      const retrieved = getRelationshipTypesFromCache();
+      expect(retrieved).toBeNull();
+      expect(localStorage.getItem('bahmni_relationship_types')).toBeNull();
+    });
+
     it('should handle JSON parse errors gracefully', () => {
       localStorage.setItem('bahmni_relationship_types', 'invalid json');
 

@@ -61,9 +61,9 @@ export const getRelationshipTypesFromCache = (): RelationshipType[] | null => {
         (item) =>
           item &&
           typeof item === 'object' &&
-          'uuid' in item &&
-          'aIsToB' in item &&
-          'bIsToA' in item,
+          typeof item.uuid === 'string' &&
+          typeof item.aIsToB === 'string' &&
+          typeof item.bIsToA === 'string',
       )
     ) {
       localStorage.removeItem(CACHE_KEY);
