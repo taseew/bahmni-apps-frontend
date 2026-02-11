@@ -311,6 +311,63 @@ describe('AddressInfo', () => {
       );
     });
 
+    it('should clear only autocomplete fields when selecting autocomplete value, preserving free text child fields', async () => {
+      // Setup: Fill in autocomplete field (district), then fill free text child fields (city, pincode)
+      mockGetAddressHierarchyEntries.mockResolvedValue([
+        {
+          uuid: 'district-1',
+          name: 'Mumbai District',
+          userGeneratedId: null,
+          parent: {
+            uuid: 'state-1',
+            name: 'Maharashtra',
+            userGeneratedId: null,
+            parent: {
+              uuid: 'country-1',
+              name: 'India',
+              userGeneratedId: null,
+            },
+          },
+        },
+      ]);
+
+      const ref = createRef<AddressInfoRef>();
+      await renderWithQueryClient(<AddressInfo ref={ref} />);
+
+      // Fill city (free text - child of district)
+      const cityInput = screen.getByLabelText(/CREATE_PATIENT_CITY/);
+      fireEvent.change(cityInput, { target: { value: 'Mumbai City' } });
+      expect(cityInput).toHaveValue('Mumbai City');
+
+      // Fill pincode (free text - child of city)
+      const pincodeInput = screen.getByLabelText(/CREATE_PATIENT_PINCODE/);
+      fireEvent.change(pincodeInput, { target: { value: '400001' } });
+      expect(pincodeInput).toHaveValue('400001');
+
+      // Select district from autocomplete (this will clear autocomplete descendants)
+      const districtInput = screen.getByRole('combobox', {
+        name: /CREATE_PATIENT_DISTRICT/,
+      });
+      fireEvent.change(districtInput, { target: { value: 'Mumbai' } });
+
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Mumbai District/)).toBeInTheDocument();
+      });
+
+      // Click on the suggestion
+      fireEvent.click(screen.getByText(/Mumbai District/));
+
+      // Verify that free text fields (city and pincode) are preserved
+      await waitFor(() => {
+        expect(cityInput).toHaveValue('Mumbai City');
+        expect(pincodeInput).toHaveValue('400001');
+      });
+    });
+
     it('should render ComboBox for strict autocomplete fields', async () => {
       await renderWithQueryClient(<AddressInfo />);
 
